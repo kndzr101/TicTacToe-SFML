@@ -1,13 +1,13 @@
 #include <SFML/Graphics.hpp>
 #include <string>
 
-class PlayAgainButton{
+class PlayAgainButton {
 public:
     PlayAgainButton(sf::Texture& normalTexture, sf::Vector2f position);
     void draw(sf::RenderWindow& window);
     bool isClicked() const;
     void handleEvent(const sf::Event& event, const sf::RenderWindow& window);
-    void reset();
+    void reset();  
 
 private:
     sf::Sprite normalSprite;

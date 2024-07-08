@@ -13,18 +13,23 @@ const char* FONT_PATH = "fonts/Roboto-Regular.ttf";
 const char* GAME_OVER_PATH = "images/game_over.png";
 const char* PLAY_AGAIN_PATH = "images/play-again.png";
 
-enum   cellState {
+enum cellState {
     nothing = 0,
     circle = 1,
     cross = 2
 };
 
+enum machineStates {
+    PLAYER_ONE_TURN = 0,
+    PLAYER_TWO_TURN = 1,
+    END_GAME_SCREEN = 2,
+    CLOSE_WINDOW = 3
+};
+
 sf::Sprite getItToSprite(sf::Texture& texture, const char* imagePath) {
-    sf::Image image;
-    if (!image.loadFromFile(imagePath)) {
-        std::cerr << "error loading image " << imagePath << std::endl;
+    if (!texture.loadFromFile(imagePath)) {
+        std::cerr << "Error loading image " << imagePath << std::endl;
     }
-    texture.loadFromImage(image);
     sf::Sprite sprite;
     sprite.setTexture(texture, true);
     return sprite;
@@ -32,15 +37,32 @@ sf::Sprite getItToSprite(sf::Texture& texture, const char* imagePath) {
 
 bool checkWinner(cellState gameState[][3], cellState player, int x, int y) {
     int col = 0, row = 0, diag = 0, rdiag = 0;
+    bool draw = true;
+    
 
     for (int i = 0; i < 3; ++i) {
+	
         if (gameState[x][i] == player) col++;
         if (gameState[i][y] == player) row++;
         if (gameState[i][i] == player) diag++;
         if (gameState[i][2 - i] == player) rdiag++;
     }
+    if((col == 3 || row == 3 || diag == 3 || rdiag == 3)){
+	return true;
+    }
+    for(int i = 0 ; i < 3 ; ++i){
+	for ( int j = 0 ; j < 3 ; ++j){
+		if(gameState[i][j] == nothing){
+			draw = false;
+			break;
+		}
+	}
+	if(draw == false){
+		break;
+	}
+    }
 
-    return (col == 3 || row == 3 || diag == 3 || rdiag == 3);
+    return  draw;
 }
 
 void resetGame(cellState gameState[][3], Button* buttons[][3]) {
@@ -51,25 +73,23 @@ void resetGame(cellState gameState[][3], Button* buttons[][3]) {
         }
     }
 }
-void printGameState(cellState gameState[][3]){
 
+void printGameState(cellState gameState[][3]) {
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-		switch ( gameState[i][j]){
-			case nothing:
-				std::cout << 0 <<" ";
-				break;
-			case circle:
-				std::cout << 1 << " ";
-				break;
-			case cross:
-				std::cout << 2 << " " ;
-				break;
-
-		}
-
+            switch (gameState[i][j]) {
+                case nothing:
+                    std::cout << 0 << " ";
+                    break;
+                case circle:
+                    std::cout << 1 << " ";
+                    break;
+                case cross:
+                    std::cout << 2 << " ";
+                    break;
+            }
         }
-	std::cout << std::endl;
+        std::cout << std::endl;
     }
 }
 
@@ -78,10 +98,13 @@ int main() {
 
     while (startAgain) {
         bool gameIsOver = false;
+        startAgain = false;
 
-        cellState gameState[3][3] = { {nothing, nothing, nothing}, 
-                                      {nothing, nothing, nothing}, 
-                                      {nothing, nothing, nothing} };
+        cellState gameState[3][3] = {
+            {nothing, nothing, nothing},
+            {nothing, nothing, nothing},
+            {nothing, nothing, nothing}
+        };
 
         sf::RenderWindow window(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "TicTacToe");
 
@@ -121,20 +144,20 @@ int main() {
             }
         }
 
-        PlayAgainButton playAgainButton(playAgainTexture, sf::Vector2f((SCREEN_WIDTH - playAgainSprite.getGlobalBounds().width) / 2, 
+        PlayAgainButton playAgainButton(playAgainTexture, sf::Vector2f((SCREEN_WIDTH - playAgainSprite.getGlobalBounds().width) / 2,
                                                                        (SCREEN_HEIGHT - 2 * playAgainSprite.getGlobalBounds().height)));
 
         int currentPlayer = 1;
+        machineStates currGameState = PLAYER_ONE_TURN;
 
         while (window.isOpen()) {
             sf::Event event;
             while (window.pollEvent(event)) {
                 if (event.type == sf::Event::Closed) {
-                    startAgain = false;
                     window.close();
                 }
 
-                if (!gameIsOver) {
+                if (currGameState == PLAYER_ONE_TURN || currGameState == PLAYER_TWO_TURN) {
                     for (int i = 0; i < 3; ++i) {
                         for (int j = 0; j < 3; ++j) {
                             buttons[i][j]->setPlayer(currentPlayer);
@@ -144,26 +167,23 @@ int main() {
                                 gameState[i][j] = currState;
                                 if (checkWinner(gameState, currState, i, j)) {
                                     gameIsOver = true;
-
-				    resetGame(gameState, buttons);
-				    std::cout << "Game is over. Winner is player " << currentPlayer << std::endl;
+                                    currGameState = END_GAME_SCREEN;
                                 }
                                 currentPlayer = (currentPlayer == 1) ? 2 : 1;
                             }
                         }
                     }
-                } else {
+                } else if (currGameState == END_GAME_SCREEN) {
                     playAgainButton.handleEvent(event, window);
-
                     if (playAgainButton.isClicked()) {
                         resetGame(gameState, buttons);
-			printGameState(gameState);
-			
+                        printGameState(gameState);
                         gameIsOver = false;
-			startAgain = true;
+                        startAgain = true;
                         currentPlayer = 1;
                         playAgainButton.reset();
-                        window.clear();
+                        currGameState = PLAYER_ONE_TURN;
+			window.close();
                     }
                 }
             }
@@ -177,7 +197,7 @@ int main() {
                 }
             }
 
-            if (gameIsOver ) {
+            if (currGameState == END_GAME_SCREEN) {
                 window.draw(gameOverSprite);
                 playAgainButton.draw(window);
             }

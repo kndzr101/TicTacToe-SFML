@@ -4,6 +4,7 @@
 class Button {
 public:
     Button(sf::Texture& normalTexture, sf::Texture& xTexture, sf::Texture& oTexture, sf::Vector2f position);
+    Button();
 
     void handleEvent(const sf::Event& event, const sf::RenderWindow& window);
     void draw(sf::RenderWindow& window);
@@ -23,6 +24,12 @@ private:
     bool clicked;
     int currentPlayer;
 };
+Button::Button(){
+	clicked = false;
+	currentPlayer = 0;
+	state = Normal;
+
+}
 
 Button::Button(sf::Texture& normalTexture, sf::Texture& xTexture, sf::Texture& oTexture, sf::Vector2f position)
     : state(Normal), clicked(false), currentPlayer(0) {
@@ -70,7 +77,7 @@ void Button::setPlayer(int player) {
     currentPlayer = player;
 }
 void Button::resetState(){
-	currentPlayer = 1;
+	currentPlayer = 0;
 	state = Normal;
 	currentSprite = &normalSprite;
 }
