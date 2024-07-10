@@ -13,6 +13,11 @@ const char* FONT_PATH = "fonts/Roboto-Regular.ttf";
 const char* GAME_OVER_PATH = "images/game_over.png";
 const char* PLAY_AGAIN_PATH = "images/play-again.png";
 
+struct Move {
+    int x;
+    int y;
+};
+
 enum cellState {
     nothing = 0,
     circle = 1,
@@ -35,34 +40,136 @@ sf::Sprite getItToSprite(sf::Texture& texture, const char* imagePath) {
     return sprite;
 }
 
+bool isMovesLeft(cellState gameState[][3]) {
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            if (gameState[i][j] == nothing) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+int evaluate(cellState gameState[][3]) {
+    for (int row = 0; row < 3; ++row) {
+        if (gameState[row][0] == gameState[row][1] && gameState[row][1] == gameState[row][2]) {
+            if (gameState[row][0] == circle) {
+                return +10;
+            } else if (gameState[row][0] == cross) {
+                return -10;
+            }
+        }
+    }
+    for (int col = 0; col < 3; ++col) {
+        if (gameState[0][col] == gameState[1][col] && gameState[1][col] == gameState[2][col]) {
+            if (gameState[0][col] == circle) {
+                return +10;
+            } else if (gameState[0][col] == cross) {
+                return -10;
+            }
+        }
+    }
+    if (gameState[0][0] == gameState[1][1] && gameState[1][1] == gameState[2][2]) {
+        if (gameState[0][0] == circle) {
+            return +10;
+        } else if (gameState[0][0] == cross) {
+            return -10;
+        }
+    }
+    if (gameState[0][2] == gameState[1][1] && gameState[1][1] == gameState[2][0]) {
+        if (gameState[0][2] == circle) {
+            return +10;
+        } else if (gameState[0][2] == cross) {
+            return -10;
+        }
+    }
+    return 0;
+}
+
+int minimax(cellState gameState[][3], int depth, bool isMax) {
+    int score = evaluate(gameState);
+
+    if (score == 10) return score - depth;
+    if (score == -10) return score + depth;
+    if (!isMovesLeft(gameState)) return 0;
+
+    if (isMax) {
+        int best = -1000;
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                if (gameState[i][j] == nothing) {
+                    gameState[i][j] = circle;
+                    best = std::max(best, minimax(gameState, depth + 1, !isMax));
+                    gameState[i][j] = nothing;
+                }
+            }
+        }
+        return best;
+    } else {
+        int best = 1000;
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                if (gameState[i][j] == nothing) {
+                    gameState[i][j] = cross;
+                    best = std::min(best, minimax(gameState, depth + 1, !isMax));
+                    gameState[i][j] = nothing;
+                }
+            }
+        }
+        return best;
+    }
+}
+
+Move findBestMove(cellState gameState[][3]) {
+    int bestVal = -1000;
+    Move bestMove;
+    bestMove.x = -1;
+    bestMove.y = -1;
+
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            if (gameState[i][j] == nothing) {
+                gameState[i][j] = circle;
+                int moveVal = minimax(gameState, 0, false);
+                gameState[i][j] = nothing;
+                if (moveVal > bestVal) {
+                    bestMove.x = i;
+                    bestMove.y = j;
+                    bestVal = moveVal;
+                }
+            }
+        }
+    }
+    return bestMove;
+}
+
 bool checkWinner(cellState gameState[][3], cellState player, int x, int y) {
     int col = 0, row = 0, diag = 0, rdiag = 0;
     bool draw = true;
-    
 
     for (int i = 0; i < 3; ++i) {
-	
         if (gameState[x][i] == player) col++;
         if (gameState[i][y] == player) row++;
         if (gameState[i][i] == player) diag++;
         if (gameState[i][2 - i] == player) rdiag++;
     }
-    if((col == 3 || row == 3 || diag == 3 || rdiag == 3)){
-	return true;
-    }
-    for(int i = 0 ; i < 3 ; ++i){
-	for ( int j = 0 ; j < 3 ; ++j){
-		if(gameState[i][j] == nothing){
-			draw = false;
-			break;
-		}
-	}
-	if(draw == false){
-		break;
-	}
+
+    if (col == 3 || row == 3 || diag == 3 || rdiag == 3) {
+        return true;
     }
 
-    return  draw;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            if (gameState[i][j] == nothing) {
+                draw = false;
+                break;
+            }
+        }
+        if (!draw) break;
+    }
+
+    return draw;
 }
 
 void resetGame(cellState gameState[][3], Button* buttons[][3]) {
@@ -157,24 +264,43 @@ int main() {
                     window.close();
                 }
 
-                if (currGameState == PLAYER_ONE_TURN || currGameState == PLAYER_TWO_TURN) {
+                if (currGameState == PLAYER_ONE_TURN) {
                     for (int i = 0; i < 3; ++i) {
                         for (int j = 0; j < 3; ++j) {
                             buttons[i][j]->setPlayer(currentPlayer);
                             buttons[i][j]->handleEvent(event, window);
                             if (buttons[i][j]->isClicked() && gameState[i][j] == nothing) {
-                                cellState currState = (currentPlayer == 1) ? cross : circle;
+                                cellState currState = cross;
                                 gameState[i][j] = currState;
                                 if (checkWinner(gameState, currState, i, j)) {
                                     gameIsOver = true;
                                     currGameState = END_GAME_SCREEN;
+                                } else {
+                                    currentPlayer = 2;
+                                    currGameState = PLAYER_TWO_TURN;
                                 }
-                                currentPlayer = (currentPlayer == 1) ? 2 : 1;
                             }
+                        }
+                    }
+                } else if (currGameState == PLAYER_TWO_TURN) {
+			std::cout << "we are entering second player"<<std::endl;
+                    Move bestMove = findBestMove(gameState);
+                    if (bestMove.x != -1 && bestMove.y != -1) {
+                        buttons[bestMove.x][bestMove.y]->setPlayer(currentPlayer);
+			buttons[bestMove.x][bestMove.y]->setSprite(2);
+                        cellState currState = circle;
+                        gameState[bestMove.x][bestMove.y] = currState;
+                        if (checkWinner(gameState, currState, bestMove.x, bestMove.y)) {
+                            gameIsOver = true;
+                            currGameState = END_GAME_SCREEN;
+                        } else {
+                            currentPlayer = 1;
+                            currGameState = PLAYER_ONE_TURN;
                         }
                     }
                 } else if (currGameState == END_GAME_SCREEN) {
                     playAgainButton.handleEvent(event, window);
+
                     if (playAgainButton.isClicked()) {
                         resetGame(gameState, buttons);
                         printGameState(gameState);
@@ -183,7 +309,7 @@ int main() {
                         currentPlayer = 1;
                         playAgainButton.reset();
                         currGameState = PLAYER_ONE_TURN;
-			window.close();
+                        window.close();
                     }
                 }
             }

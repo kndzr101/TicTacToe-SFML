@@ -12,6 +12,7 @@ public:
     bool isClicked() const;
     void setPlayer(int player);
     void resetState();
+    void setSprite(int x);
 
 private:
     enum State { Normal, X, O } state;
@@ -75,6 +76,23 @@ bool Button::isClicked() const {
 
 void Button::setPlayer(int player) {
     currentPlayer = player;
+}
+void Button::setSprite(int player){
+	switch(player){
+		case 0:
+			state = Normal;
+			currentSprite = &normalSprite;
+			break;
+		case 1:
+			state = X;
+			currentSprite = &xSprite;
+			break;
+		case 2:
+			state = O;
+			currentSprite = &oSprite;
+			break;
+	}
+
 }
 void Button::resetState(){
 	currentPlayer = 0;
